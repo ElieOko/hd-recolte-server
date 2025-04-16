@@ -42,7 +42,7 @@ class AgentController extends Controller
              ],402);
         }
         $field = $validator->validated();
-        $data = Agent::where('code',$field['code'])->first() ;
+        $data = Agent::where('code',strtolower($field['code']))->first() ;
         if(!$data){
             return response()->json([
                'message' => 'Utilisateur non valide'
@@ -75,7 +75,7 @@ class AgentController extends Controller
             $state = Agent::where("nom",$validated['nom'])->where("postnom",$validated['postnom'])->where("prenom",$validated['prenom'])->get();
             if(count($state) == 0){
                 $agent = Agent::updateOrCreate([
-                    'code'              => $code,
+                    'code'              => strtolower($code),
                     'nom'               => $validated['nom'],
                     'postnom'           => $validated['postnom'],
                     'prenom'            => $validated['prenom'],
