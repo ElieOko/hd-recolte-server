@@ -16,7 +16,7 @@ class ClientController extends Controller
     public function index()
     {
         //
-        $data = Client::all();
+        $data = Client::with("address_client")->orderBy('id', 'asc')->get();
         if($data->count() != 0 ){
             return new ClientCollection($data);
         }
@@ -50,7 +50,7 @@ class ClientController extends Controller
                'message' => "Ce numéro n'est pas identifié"
             ],404);
         }
-        if((AddressClient::where("client_id",$client->id)->first())->avenue == $field['avenue'] ){
+        if((AddressClient::where("client_id",$client->id)->first())->avenue == strtolower($field['avenue'])){
             return response()->json([
                 'message' => 'login success',
                 'client' => $client,
@@ -88,7 +88,7 @@ class ClientController extends Controller
                 $client_address = AddressClient::updateOrCreate([
                     'commune_id'      => $validated['commune_id'],
                     'client_id'       => $client->id,
-                    'avenue'          => $validated["avenue"],
+                    'avenue'          => strtolower($validated["avenue"]),
                     'quartier'        => $validated["quartier"],
                     'numero_parcelle' => $validated['numero_parcelle']
                 ]);

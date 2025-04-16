@@ -14,7 +14,7 @@ class ClientTrashController extends Controller
      */
     public function index()
     {
-        $data = ClientTrash::with("client")->orderBy('id', 'asc')->get();
+        $data = ClientTrash::with("client.address_client")->orderBy('id', 'asc')->get();
         if($data->count() != 0 ){
             return new ClientTrashCollection($data);
         }
@@ -60,9 +60,20 @@ class ClientTrashController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(ClientTrash $clientTrash)
+    public function show(int $client_id)
     {
-        //
+        $data = ClientTrash::where("client_id",$client_id)->with("client.address_client")->first();
+        if($data){
+        return response()->json([
+            'message' => "",
+            'data' => $data
+         ],201);
+        }
+        else{
+            return response()->json([
+                'message' => "Votre poubelle n'est pas encore pris en charge cliquez sur Vidage",
+             ],404);
+        }
     }
 
     /**
@@ -96,6 +107,7 @@ class ClientTrashController extends Controller
                     'state_trash_id' => $state,
                     'is_active'      => true,
             ]);
+            $data = ClientTrash::where("id",$id)->first();
             return response()->json([
                 'data'    => $data,
                 'message' => $state == 1 ?"Votre poubelle est actuellement propre":"Nettoyage de la poubelle encours"
