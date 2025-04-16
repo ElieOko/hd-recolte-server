@@ -12,6 +12,7 @@ Route::post('trash/clean/{id}', [ClientTrashController::class, 'clean']);
 Route::resource('agent', AgentController::class)->only([ 'index','store']);
 Route::resource('client', ClientController::class)->only(['store','index']);
 Route::resource('trash', ClientTrashController::class)->only(['index', 'store']);
+Route::get('trash/{id}', [ClientTrashController::class,'show']);
 // Route::resource('state_trash', ClientController::class)->only(['index', 'store']);
 
 Route::middleware(['auth:sanctum'])->group(function () { 
