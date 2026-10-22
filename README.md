@@ -1,66 +1,77 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# HD Récolte
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+API de collecte des poubelles (clients, agents, adresses, vidage), réécrite en **Spring Boot Kotlin** sur le même découpage que [casa-spring-boot-backend-modern](https://github.com/ElieOko/casa-spring-boot-backend-modern).
 
-## About Laravel
+## Structure
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+```
+src/main/kotlin/server/web/recolte
+├── RecolteApplication.kt
+├── config/          sécurité HTTP, Jackson, OpenAPI, Flyway
+├── exception/       erreurs JSON et accès refusé
+├── route/           scopes public / protected / private
+├── security/        JWT, hash, filtre, utilisateur courant
+├── utils/
+└── app/
+    ├── address/     districts et communes
+    ├── client/      clients et adresses
+    ├── agent/
+    ├── trash/       états et demandes de vidage
+    ├── promotion/
+    └── user/        comptes administrateurs
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Chaque fonctionnalité suit les couches `domain` → `application/service` → `infrastructure` (`controller`, `persistence/entity`, `repository`, `mapper`). La persistance est en **R2DBC** (coroutines) et le schéma PostgreSQL est versionné par **Flyway**.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Lancer
 
-## Learning Laravel
+```bash
+docker compose up -d
+./gradlew bootRun
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+L'API écoute sur le port `8000` (le préfixe reste `/api`, comme l'application Laravel).
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Profils : `dev` (défaut, PostgreSQL local), `prod` (variables d'environnement), `test` (H2 en mémoire).
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Variable | Rôle |
+| --- | --- |
+| `JDBC_URL` / `R2DBC_URL` | Connexions Flyway et R2DBC |
+| `DB_USERNAME` / `DB_PASSWORD` | Identifiants PostgreSQL |
+| `JWT_SECRET` | Secret HMAC en Base64 (32 octets minimum) |
 
-## Laravel Sponsors
+Documentation : `http://localhost:8000/swagger-ui.html`
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Contrat conservé pour les applications mobiles
 
-### Premium Partners
+| Méthode | Chemin | Rôle |
+| --- | --- | --- |
+| `POST` | `/api/client` | Créer un client et son adresse |
+| `GET` | `/api/client` | Lister les clients |
+| `POST` | `/api/client/auth` | Connexion téléphone + avenue |
+| `POST` | `/api/agent` | Créer un agent (`hda-1`, `hda-2`, …) |
+| `GET` | `/api/agent` | Lister les agents |
+| `POST` | `/api/agent/auth` | Connexion par code |
+| `POST` | `/api/trash` | Demander un vidage |
+| `GET` | `/api/trash` | Lister les poubelles |
+| `GET` | `/api/trash/{clientId}` | Poubelle d'un client |
+| `POST` | `/api/trash/clean/{id}` | Faire avancer le nettoyage |
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+Les mêmes opérations existent en versionné, sur le modèle Casa : `/api/v1/public/...`.
 
-## Contributing
+Les référentiels (communes de Kinshasa, états de poubelle `1` propre, `2` en cours, `3` à vider) sont insérés au démarrage. La création d'un district, d'une commune, d'un état ou d'une promotion passe par `/api/v1/protected/...` et demande un JWT.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Les comptes administrateurs :
 
-## Code of Conduct
+- `POST /api/v1/public/auth/register`
+- `POST /api/v1/public/auth/login`
+- `POST /api/v1/public/auth/refresh`
+- `GET /api/v1/protected/users`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Les codes client sont `hdc-1`, `hdc-2`, … et les codes agent `hda-1`, `hda-2`, … (préfixes historiques, stockés en minuscules).
 
-## Security Vulnerabilities
+## Tests
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+./gradlew test
+```

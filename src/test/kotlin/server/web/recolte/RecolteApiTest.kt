@@ -1,0 +1,180 @@
+package server.web.recolte
+
+import org.hamcrest.Matchers.containsString
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.http.MediaType
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.MvcResult
+import org.springframework.test.web.servlet.ResultActions
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class RecolteApiTest(
+    @Autowired val mockMvc: MockMvc,
+    @Autowired val json: JsonMapper,
+) {
+    @Test
+    fun legacyAndVersionedApiCoverTheCollectionFlow() {
+        get("/api/v1/public/communes")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.communes[3].nom").value("Gombe"))
+
+        post("/api/client", """{"nom":"Kabila"}""")
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.message.prenom[0]").value("The prenom field is required."))
+
+        val created = post(
+            "/api/client",
+            """
+            {
+              "nom": "Kabila",
+              "prenom": "Elie",
+              "telephone": "0999000111",
+              "commune_id": 4,
+              "avenue": "Limete",
+              "quartier": "Residentiel",
+              "numero_parcelle": "12"
+            }
+            """.trimIndent(),
+        ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.message").value("Compte client créer avec succès"))
+            .andExpect(jsonPath("$.client.avenue").value("limete"))
+            .andExpect(jsonPath("$.client.commune_id").value(4))
+            .andReturn()
+
+        val clientId = json.readTree(created.response.contentAsString).path("client").path("client_id").asLong()
+
+        get("/api/client")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.clients[0].code").value("hdc-1"))
+            .andExpect(jsonPath("$.clients[0].address_client[0].avenue").value("limete"))
+
+        post("/api/client/auth", """{"telephone":"0999000111","avenue":"Inconnue"}""")
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.message").value("L'avenue inserez n'est pas associé à votre numéro"))
+
+        post("/api/v1/public/clients/auth", """{"telephone":"0999000111","avenue":"LIMETE"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.message").value("login success"))
+            .andExpect(jsonPath("$.client.address_client[0].quartier").value("Residentiel"))
+
+        val agent = post(
+            "/api/agent",
+            """
+            {
+              "nom": "Mukendi",
+              "postnom": "Jean",
+              "prenom": "Paul",
+              "genre": "M",
+              "telephone": "081000",
+              "address": "Gombe",
+              "date_naissance": "1990-01-01"
+            }
+            """.trimIndent(),
+        ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.message").value("Compte Agent créer avec succès"))
+            .andExpect(jsonPath("$.agent.code").value("hda-1"))
+            .andReturn()
+
+        post(
+            "/api/agent",
+            """{"nom":"Mukendi","postnom":"Jean","prenom":"Paul","telephone":"081111"}""",
+        ).andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.message").value("Ce compte est déjà enregistrer"))
+
+        post("/api/agent/auth", """{"code":"HDA-1"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.client.code").value("hda-1"))
+
+        val trash = post(
+            "/api/trash",
+            """{"client_id":$clientId,"state_trash_id":3}""",
+        ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.message").value("On arrive pour nettoyer votre poubelle !!"))
+            .andExpect(jsonPath("$.data.is_active").value(1))
+            .andExpect(jsonPath("$.data.client.telephone").value("0999000111"))
+            .andReturn()
+
+        val trashId = json.readTree(trash.response.contentAsString).path("data").path("id").asLong()
+
+        get("/api/trash/$clientId")
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.data.state_trash_id").value(3))
+
+        post("/api/trash/clean/$trashId", """{"client_id":$clientId,"state_trash_id":3}""")
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.message").value("Nettoyage de la poubelle encours"))
+            .andExpect(jsonPath("$.data.state_trash_id").value(2))
+
+        post("/api/v1/public/trashes/clean/$trashId", """{"client_id":$clientId,"state_trash_id":2}""")
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.message").value("Votre poubelle est actuellement propre"))
+            .andExpect(jsonPath("$.data.state_trash_id").value(1))
+
+        get("/api/trash")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.trash_clients[0].client.address_client[0].avenue").value("limete"))
+
+        get("/api/v1/protected/users")
+            .andExpect(status().isUnauthorized)
+
+        val registered = post(
+            "/api/v1/public/auth/register",
+            """{"name":"Admin","email":"admin@recolte.test","password":"secret-pass"}""",
+        ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.access_token", containsString(".")))
+            .andReturn()
+
+        val access = json.readTree(registered.response.contentAsString).path("access_token").asString()
+        val refresh = json.readTree(registered.response.contentAsString).path("refresh_token").asString()
+
+        get("/api/v1/protected/users") { header("Authorization", "Bearer $access") }
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.user.email").value("admin@recolte.test"))
+            .andExpect(jsonPath("$.users[0].name").value("Admin"))
+
+        post("/api/v1/public/auth/refresh", """{"refresh_token":"$refresh"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.access_token").exists())
+
+        get("/")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.name").value("hd-recolte"))
+
+        json.readTree(agent.response.contentAsString).path("agent").path("date_naissance").let { node: JsonNode ->
+            check(node.asString() == "1990-01-01")
+        }
+    }
+
+    private fun get(path: String, customize: MockHttpServletRequestBuilder.() -> Unit = {}): ResultActions =
+        execute(MockMvcRequestBuilders.get(path).apply(customize))
+
+    private fun post(path: String, body: String): ResultActions =
+        execute(
+            MockMvcRequestBuilders.post(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body),
+        )
+
+    private fun execute(builder: MockHttpServletRequestBuilder): ResultActions {
+        val actions = mockMvc.perform(builder)
+        val result: MvcResult = actions.andReturn()
+        return if (result.request.isAsyncStarted) {
+            mockMvc.perform(asyncDispatch(result))
+        } else {
+            actions
+        }
+    }
+}
