@@ -68,7 +68,7 @@ Les comptes administrateurs :
 - `POST /api/v1/public/auth/refresh`
 - `GET /api/v1/protected/users`
 
-Les codes client sont `hdc-1`, `hdc-2`, … et les codes agent `hda-1`, `hda-2`, … (préfixes historiques, stockés en minuscules).
+Les codes client sont `HDC-1`, `HDC-2`, … et les codes agent `hda-1`, `hda-2`, … (préfixe agent en minuscules, comme le `strtolower` Laravel).
 
 ## Tests
 

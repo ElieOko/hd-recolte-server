@@ -1,5 +1,6 @@
 package server.web.recolte.app.trash.domain.model
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import server.web.recolte.app.client.domain.model.Client
 
@@ -19,5 +20,6 @@ data class ClientTrash(
     val isActive: Int = 1,
     val createdAt: String? = null,
     val updatedAt: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val client: Client? = null,
 )

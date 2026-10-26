@@ -58,17 +58,22 @@ class RecolteApiTest(
 
         get("/api/client")
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.clients[0].code").value("hdc-1"))
+            .andExpect(jsonPath("$.clients[0].code").value("HDC-1"))
             .andExpect(jsonPath("$.clients[0].address_client[0].avenue").value("limete"))
 
         post("/api/client/auth", """{"telephone":"0999000111","avenue":"Inconnue"}""")
             .andExpect(status().isForbidden)
             .andExpect(jsonPath("$.message").value("L'avenue inserez n'est pas associé à votre numéro"))
 
-        post("/api/v1/public/clients/auth", """{"telephone":"0999000111","avenue":"LIMETE"}""")
+        val clientLogin = post("/api/v1/public/clients/auth", """{"telephone":"0999000111","avenue":"LIMETE"}""")
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("login success"))
+            .andExpect(jsonPath("$.client.code").value("HDC-1"))
             .andExpect(jsonPath("$.client.address_client[0].quartier").value("Residentiel"))
+            .andReturn()
+        check(fieldNames(clientLogin, "client") == listOf(
+            "id", "code", "nom", "prenom", "telephone", "created_at", "updated_at", "address_client",
+        ))
 
         val agent = post(
             "/api/agent",
@@ -86,7 +91,13 @@ class RecolteApiTest(
         ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.message").value("Compte Agent créer avec succès"))
             .andExpect(jsonPath("$.agent.code").value("hda-1"))
+            .andExpect(jsonPath("$.agent.city_id").value(1))
             .andReturn()
+
+        get("/api/agent")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.agents[0].code").value("hda-1"))
+            .andExpect(jsonPath("$.agents[0].city_id").value(1))
 
         post(
             "/api/agent",
@@ -96,7 +107,12 @@ class RecolteApiTest(
 
         post("/api/agent/auth", """{"code":"HDA-1"}""")
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.client.code").value("hda-1"))
+            .andExpect(jsonPath("$.message").value("login success"))
+            .andExpect(jsonPath("$.agent.code").value("hda-1"))
+            .andExpect(jsonPath("$.agent.city_id").value(1))
+            .andExpect(jsonPath("$.client[0].code").value("HDC-1"))
+            .andExpect(jsonPath("$.client[0].address_client[0].avenue").value("limete"))
+            .andExpect(jsonPath("$.trash_client").isEmpty)
 
         val trash = post(
             "/api/trash",
@@ -104,19 +120,63 @@ class RecolteApiTest(
         ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.message").value("On arrive pour nettoyer votre poubelle !!"))
             .andExpect(jsonPath("$.data.is_active").value(1))
-            .andExpect(jsonPath("$.data.client.telephone").value("0999000111"))
+            .andExpect(jsonPath("$.data.client_id").value(clientId))
+            .andExpect(jsonPath("$.data.state_trash_id").value(3))
+            .andExpect(jsonPath("$.data.client").doesNotExist())
             .andReturn()
 
         val trashId = json.readTree(trash.response.contentAsString).path("data").path("id").asLong()
 
         get("/api/trash/$clientId")
             .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.message").value(""))
             .andExpect(jsonPath("$.data.state_trash_id").value(3))
+            .andExpect(jsonPath("$.data.client.telephone").value("0999000111"))
+            .andExpect(jsonPath("$.data.client.address_client[0].avenue").value("limete"))
+
+        val agentLogin = post("/api/agent/auth", """{"code":"hda-1"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.message").value("login success"))
+            .andExpect(jsonPath("$.agent.code").value("hda-1"))
+            .andExpect(jsonPath("$.agent.nom").value("Mukendi"))
+            .andExpect(jsonPath("$.agent.postnom").value("Jean"))
+            .andExpect(jsonPath("$.agent.prenom").value("Paul"))
+            .andExpect(jsonPath("$.agent.telephone").value("081000"))
+            .andExpect(jsonPath("$.agent.genre").value("M"))
+            .andExpect(jsonPath("$.agent.address").value("Gombe"))
+            .andExpect(jsonPath("$.agent.date_naissance").value("1990-01-01"))
+            .andExpect(jsonPath("$.agent.city_id").value(1))
+            .andExpect(jsonPath("$.client[0].code").value("HDC-1"))
+            .andExpect(jsonPath("$.client[0].address_client[0].commune_id").value(4))
+            .andExpect(jsonPath("$.client[0].address_client[0].numero_parcelle").value("12"))
+            .andExpect(jsonPath("$.client[0].address_client[0].quartier").value("Residentiel"))
+            .andExpect(jsonPath("$.trash_client[0].client_id").value(clientId))
+            .andExpect(jsonPath("$.trash_client[0].state_trash_id").value(3))
+            .andExpect(jsonPath("$.trash_client[0].is_active").value(1))
+            .andExpect(jsonPath("$.trash_client[0].client.code").value("HDC-1"))
+            .andExpect(jsonPath("$.trash_client[0].client.address_client[0].avenue").value("limete"))
+            .andReturn()
+        check(fieldNames(agentLogin) == listOf("message", "agent", "client", "trash_client"))
+        check(fieldNames(agentLogin, "agent") == listOf(
+            "id", "code", "city_id", "nom", "postnom", "prenom", "telephone", "genre", "address",
+            "date_naissance", "created_at", "updated_at",
+        ))
+        check(fieldNames(agentLogin, "client", 0) == listOf(
+            "id", "code", "nom", "prenom", "telephone", "created_at", "updated_at", "address_client",
+        ))
+        check(fieldNames(agentLogin, "client", 0, "address_client", 0) == listOf(
+            "id", "client_id", "commune_id", "avenue", "numero_parcelle", "quartier", "created_at", "updated_at",
+        ))
+        check(
+            json.readTree(agentLogin.response.contentAsString).path("agent").path("created_at").asString()
+                .matches(Regex("""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z""")),
+        )
 
         post("/api/trash/clean/$trashId", """{"client_id":$clientId,"state_trash_id":3}""")
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.message").value("Nettoyage de la poubelle encours"))
             .andExpect(jsonPath("$.data.state_trash_id").value(2))
+            .andExpect(jsonPath("$.data.client").doesNotExist())
 
         post("/api/v1/public/trashes/clean/$trashId", """{"client_id":$clientId,"state_trash_id":2}""")
             .andExpect(status().isCreated)
@@ -156,6 +216,17 @@ class RecolteApiTest(
         json.readTree(agent.response.contentAsString).path("agent").path("date_naissance").let { node: JsonNode ->
             check(node.asString() == "1990-01-01")
         }
+    }
+
+    private fun fieldNames(result: MvcResult, vararg path: Any): List<String> {
+        var node = json.readTree(result.response.contentAsString)
+        path.forEach { step ->
+            node = when (step) {
+                is Int -> node.path(step)
+                else -> node.path(step.toString())
+            }
+        }
+        return node.propertyNames().toList()
     }
 
     private fun get(path: String, customize: MockHttpServletRequestBuilder.() -> Unit = {}): ResultActions =
