@@ -36,6 +36,7 @@ class ClientService(
             request.montantSouscription,
             request.nombreTranches,
             request.tranche,
+            request.devise,
         )
         val communeId = request.communeId
         if (communeId != null && communes.findById(communeId) == null) {
@@ -49,6 +50,7 @@ class ClientService(
                 prenom = request.prenom!!.trim(),
                 telephone = request.telephone!!.trim(),
                 montantSouscription = souscription.montantSouscription,
+                devise = souscription.devise,
                 nombreTranches = souscription.nombreTranches,
                 createdAt = now,
                 updatedAt = now,

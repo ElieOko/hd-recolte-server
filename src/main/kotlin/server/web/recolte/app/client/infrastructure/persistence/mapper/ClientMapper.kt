@@ -19,7 +19,7 @@ fun AddressClientEntity.toDomain() = AddressClient(
 )
 
 fun ClientEntity.toDomain(addresses: List<AddressClient> = emptyList()): Client {
-    val souscription = Tranches.of(montantSouscription, nombreTranches)
+    val souscription = Tranches.of(montantSouscription, nombreTranches, devise)
     return Client(
         id = id,
         code = code,
@@ -27,6 +27,7 @@ fun ClientEntity.toDomain(addresses: List<AddressClient> = emptyList()): Client 
         prenom = prenom,
         telephone = telephone,
         montantSouscription = souscription.montantSouscription,
+        devise = souscription.devise,
         nombreTranches = souscription.nombreTranches,
         tranche = souscription.tranche,
         tranches = souscription.tranches,

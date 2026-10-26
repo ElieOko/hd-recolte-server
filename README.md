@@ -46,7 +46,7 @@ Documentation : `http://localhost:8000/swagger-ui.html`
 
 | Méthode | Chemin | Rôle |
 | --- | --- | --- |
-| `POST` | `/api/client` | Créer un client, son adresse et sa souscription (`montant_souscription`, 1 à 4 tranches) |
+| `POST` | `/api/client` | Créer un client, son adresse et sa souscription (`montant_souscription`, devise `FC` ou `$`, 1 à 4 tranches) |
 | `GET` | `/api/client` | Lister les clients |
 | `POST` | `/api/client/auth` | Connexion téléphone + avenue |
 | `POST` | `/api/agent` | Créer un agent (`hda-1`, `hda-2`, …) |

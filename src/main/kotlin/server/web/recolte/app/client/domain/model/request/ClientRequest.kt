@@ -12,6 +12,7 @@ data class ClientStoreRequest(
     val numeroParcelle: String? = null,
     @JsonAlias("montant")
     val montantSouscription: Long? = null,
+    val devise: String? = null,
     val nombreTranches: Int? = null,
     val tranche: String? = null,
 )

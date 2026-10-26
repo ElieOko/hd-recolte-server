@@ -18,6 +18,7 @@ class TestSchemaConfig {
             addScript(ClassPathResource("db/migration/V1__init.sql"))
             addScript(ClassPathResource("db/migration/V2__seed.sql"))
             addScript(ClassPathResource("db/migration/V3__client_souscription.sql"))
+            addScript(ClassPathResource("db/migration/V4__client_devise.sql"))
         }
         return ConnectionFactoryInitializer().apply {
             setConnectionFactory(connectionFactory)

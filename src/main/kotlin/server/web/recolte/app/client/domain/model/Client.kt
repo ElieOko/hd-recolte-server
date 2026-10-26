@@ -7,6 +7,7 @@ data class Client(
     val prenom: String = "",
     val telephone: String? = null,
     val montantSouscription: Long = 0,
+    val devise: String = "FC",
     val nombreTranches: Int = 1,
     val tranche: String = "une tranche",
     val tranches: List<TrancheMensuelle> = emptyList(),

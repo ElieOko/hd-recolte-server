@@ -10,6 +10,7 @@ data class TrancheMensuelle(
 
 data class Souscription(
     val montantSouscription: Long,
+    val devise: String,
     val nombreTranches: Int,
     val tranche: String,
     val tranches: List<TrancheMensuelle>,
@@ -28,17 +29,18 @@ object Tranches {
         4 to "quatre tranche",
     )
 
-    fun of(montant: Long, count: Int): Souscription {
+    fun of(montant: Long, count: Int, devise: String = "FC"): Souscription {
         val nombre = count.coerceIn(1, 4)
         return Souscription(
             montantSouscription = montant,
+            devise = normalizeStored(devise),
             nombreTranches = nombre,
             tranche = labels.getValue(nombre),
             tranches = split(montant, nombre),
         )
     }
 
-    fun require(montant: Long?, nombre: Int?, label: String?): Souscription {
+    fun require(montant: Long?, nombre: Int?, label: String?, devise: String?): Souscription {
         if (montant == null) {
             throw invalid(
                 mapOf(
@@ -50,8 +52,22 @@ object Tranches {
             throw invalid("Le montant de souscription doit être supérieur à 0")
         }
         val count = resolve(nombre, label)
-        return of(montant, count)
+        return of(montant, count, requireDevise(devise))
     }
+
+    private fun requireDevise(value: String?): String {
+        if (value.isNullOrBlank()) {
+            throw invalid(mapOf("devise" to listOf("The devise field is required.")))
+        }
+        return when (value.trim().uppercase()) {
+            "FC" -> "FC"
+            "$" -> "$"
+            else -> throw invalid("La devise doit être FC ou $")
+        }
+    }
+
+    private fun normalizeStored(value: String): String =
+        if (value.trim() == "$") "$" else "FC"
 
     private fun resolve(nombre: Int?, label: String?): Int {
         val fromNombre = nombre?.takeIf { it in labels }
