@@ -18,6 +18,12 @@ data class ClientEntity(
     val prenom: String,
     @Column("telephone")
     val telephone: String? = null,
+    @Column("montant_souscription")
+    val montantSouscription: Long = 0,
+    @Column("devise")
+    val devise: String = "FC",
+    @Column("nombre_tranches")
+    val nombreTranches: Int = 1,
     @Column("created_at")
     val createdAt: LocalDateTime? = null,
     @Column("updated_at")
