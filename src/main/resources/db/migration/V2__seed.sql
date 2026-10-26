@@ -1,11 +1,13 @@
-INSERT INTO state_trashes (niveau, nom) VALUES
+SET search_path TO public;
+
+INSERT INTO public.state_trashes (niveau, nom) VALUES
     (1, 'Propre'),
     (2, 'Nettoyage en cours'),
     (3, 'A vider');
 
-INSERT INTO districts (nom, city_id) VALUES ('Kinshasa', 1);
+INSERT INTO public.districts (nom, city_id) VALUES ('Kinshasa', 1);
 
-INSERT INTO communes (nom, district_id) VALUES
+INSERT INTO public.communes (nom, district_id) VALUES
     ('Bandalungwa', 1),
     ('Barumbu', 1),
     ('Bumbu', 1),
