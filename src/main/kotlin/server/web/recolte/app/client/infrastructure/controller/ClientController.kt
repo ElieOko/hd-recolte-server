@@ -52,10 +52,11 @@ class ClientController(
             ),
             HttpStatus.BAD_REQUEST,
         )
-        val address = service.create(request)
+        val created = service.create(request)
         return ResponseEntity.status(HttpStatus.CREATED).body(
             mapOf(
-                "client" to address,
+                "client" to created.address,
+                "souscription" to created.souscription,
                 "message" to "Compte client créer avec succès",
             ),
         )
