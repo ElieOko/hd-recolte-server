@@ -6,9 +6,9 @@ data class Client(
     val nom: String = "",
     val prenom: String = "",
     val telephone: String? = null,
-    val addressClient: List<AddressClient> = emptyList(),
     val createdAt: String? = null,
     val updatedAt: String? = null,
+    val addressClient: List<AddressClient> = emptyList(),
 )
 
 data class AddressClient(

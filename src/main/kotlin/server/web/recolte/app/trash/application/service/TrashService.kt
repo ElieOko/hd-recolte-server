@@ -70,7 +70,7 @@ class ClientTrashService(
         }
         val existing = trashes.findFirstByClientIdAndStateTrashIdAndIsActive(clientId, stateId, true)
         if (existing != null) {
-            return existing.toDomain(loadClient(existing.clientId))
+            return existing.toDomain()
         }
         val now = TimeFormat.now()
         val saved = trashes.save(
@@ -82,7 +82,7 @@ class ClientTrashService(
                 updatedAt = now,
             ),
         )
-        return saved.toDomain(loadClient(saved.clientId))
+        return saved.toDomain()
     }
 
     @Transactional
@@ -113,7 +113,7 @@ class ClientTrashService(
         } else {
             "Nettoyage de la poubelle encours"
         }
-        return saved.toDomain(loadClient(saved.clientId)) to message
+        return saved.toDomain() to message
     }
 
     private suspend fun loadClient(clientId: Long?) =

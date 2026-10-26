@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController
 import server.web.recolte.app.agent.application.service.AgentService
 import server.web.recolte.app.agent.domain.model.request.AgentAuthRequest
 import server.web.recolte.app.agent.domain.model.request.AgentStoreRequest
+import server.web.recolte.app.client.application.service.ClientService
+import server.web.recolte.app.trash.application.service.ClientTrashService
 import server.web.recolte.route.GlobalRoute
 import server.web.recolte.route.agent.AgentScope
 import server.web.recolte.utils.FieldRules
@@ -21,6 +23,8 @@ import server.web.recolte.utils.FieldRules
 @RequestMapping(GlobalRoute.ROOT)
 class AgentController(
     private val service: AgentService,
+    private val clients: ClientService,
+    private val trashes: ClientTrashService,
 ) {
     @GetMapping(
         AgentScope.RESOURCE,
@@ -71,7 +75,9 @@ class AgentController(
         return ResponseEntity.ok(
             mapOf(
                 "message" to "login success",
-                "client" to agent,
+                "agent" to agent,
+                "client" to clients.findAll(),
+                "trash_client" to trashes.findAll(),
             ),
         )
     }
