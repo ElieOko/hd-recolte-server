@@ -2,6 +2,7 @@ package server.web.recolte.app.client.infrastructure.persistence.mapper
 
 import server.web.recolte.app.client.domain.model.AddressClient
 import server.web.recolte.app.client.domain.model.Client
+import server.web.recolte.app.client.domain.model.Tranches
 import server.web.recolte.app.client.infrastructure.persistence.entity.AddressClientEntity
 import server.web.recolte.app.client.infrastructure.persistence.entity.ClientEntity
 import server.web.recolte.utils.TimeFormat
@@ -17,13 +18,20 @@ fun AddressClientEntity.toDomain() = AddressClient(
     updatedAt = TimeFormat.format(updatedAt),
 )
 
-fun ClientEntity.toDomain(addresses: List<AddressClient> = emptyList()) = Client(
-    id = id,
-    code = code,
-    nom = nom,
-    prenom = prenom,
-    telephone = telephone,
-    addressClient = addresses,
-    createdAt = TimeFormat.format(createdAt),
-    updatedAt = TimeFormat.format(updatedAt),
-)
+fun ClientEntity.toDomain(addresses: List<AddressClient> = emptyList()): Client {
+    val souscription = Tranches.of(montantSouscription, nombreTranches)
+    return Client(
+        id = id,
+        code = code,
+        nom = nom,
+        prenom = prenom,
+        telephone = telephone,
+        montantSouscription = souscription.montantSouscription,
+        nombreTranches = souscription.nombreTranches,
+        tranche = souscription.tranche,
+        tranches = souscription.tranches,
+        createdAt = TimeFormat.format(createdAt),
+        updatedAt = TimeFormat.format(updatedAt),
+        addressClient = addresses,
+    )
+}

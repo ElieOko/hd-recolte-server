@@ -17,6 +17,7 @@ class TestSchemaConfig {
         val populator = ResourceDatabasePopulator().apply {
             addScript(ClassPathResource("db/migration/V1__init.sql"))
             addScript(ClassPathResource("db/migration/V2__seed.sql"))
+            addScript(ClassPathResource("db/migration/V3__client_souscription.sql"))
         }
         return ConnectionFactoryInitializer().apply {
             setConnectionFactory(connectionFactory)

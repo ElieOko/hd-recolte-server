@@ -25,6 +25,11 @@ class RecolteApiTest(
     @Autowired val mockMvc: MockMvc,
     @Autowired val json: JsonMapper,
 ) {
+    private val clientFields = listOf(
+        "id", "code", "nom", "prenom", "telephone",
+        "montant_souscription", "nombre_tranches", "tranche", "tranches",
+        "created_at", "updated_at", "address_client",
+    )
     @Test
     fun legacyAndVersionedApiCoverTheCollectionFlow() {
         get("/api/v1/public/communes")
@@ -45,13 +50,21 @@ class RecolteApiTest(
               "commune_id": 4,
               "avenue": "Limete",
               "quartier": "Residentiel",
-              "numero_parcelle": "12"
+              "numero_parcelle": "12",
+              "montant_souscription": 24000,
+              "nombre_tranches": 4
             }
             """.trimIndent(),
         ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.message").value("Compte client créer avec succès"))
             .andExpect(jsonPath("$.client.avenue").value("limete"))
             .andExpect(jsonPath("$.client.commune_id").value(4))
+            .andExpect(jsonPath("$.souscription.montant_souscription").value(24000))
+            .andExpect(jsonPath("$.souscription.nombre_tranches").value(4))
+            .andExpect(jsonPath("$.souscription.tranche").value("quatre tranche"))
+            .andExpect(jsonPath("$.souscription.tranches[0].montant").value(6000))
+            .andExpect(jsonPath("$.souscription.tranches[3].numero").value(4))
+            .andExpect(jsonPath("$.souscription.tranches[3].montant").value(6000))
             .andReturn()
 
         val clientId = json.readTree(created.response.contentAsString).path("client").path("client_id").asLong()
@@ -59,6 +72,9 @@ class RecolteApiTest(
         get("/api/client")
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.clients[0].code").value("HDC-1"))
+            .andExpect(jsonPath("$.clients[0].montant_souscription").value(24000))
+            .andExpect(jsonPath("$.clients[0].tranche").value("quatre tranche"))
+            .andExpect(jsonPath("$.clients[0].tranches[3].montant").value(6000))
             .andExpect(jsonPath("$.clients[0].address_client[0].avenue").value("limete"))
 
         post("/api/client/auth", """{"telephone":"0999000111","avenue":"Inconnue"}""")
@@ -69,11 +85,12 @@ class RecolteApiTest(
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("login success"))
             .andExpect(jsonPath("$.client.code").value("HDC-1"))
+            .andExpect(jsonPath("$.client.montant_souscription").value(24000))
+            .andExpect(jsonPath("$.client.nombre_tranches").value(4))
+            .andExpect(jsonPath("$.client.tranche").value("quatre tranche"))
             .andExpect(jsonPath("$.client.address_client[0].quartier").value("Residentiel"))
             .andReturn()
-        check(fieldNames(clientLogin, "client") == listOf(
-            "id", "code", "nom", "prenom", "telephone", "created_at", "updated_at", "address_client",
-        ))
+        check(fieldNames(clientLogin, "client") == clientFields)
 
         val agent = post(
             "/api/agent",
@@ -147,6 +164,8 @@ class RecolteApiTest(
             .andExpect(jsonPath("$.agent.date_naissance").value("1990-01-01"))
             .andExpect(jsonPath("$.agent.city_id").value(1))
             .andExpect(jsonPath("$.client[0].code").value("HDC-1"))
+            .andExpect(jsonPath("$.client[0].montant_souscription").value(24000))
+            .andExpect(jsonPath("$.client[0].tranches.length()").value(4))
             .andExpect(jsonPath("$.client[0].address_client[0].commune_id").value(4))
             .andExpect(jsonPath("$.client[0].address_client[0].numero_parcelle").value("12"))
             .andExpect(jsonPath("$.client[0].address_client[0].quartier").value("Residentiel"))
@@ -161,9 +180,7 @@ class RecolteApiTest(
             "id", "code", "city_id", "nom", "postnom", "prenom", "telephone", "genre", "address",
             "date_naissance", "created_at", "updated_at",
         ))
-        check(fieldNames(agentLogin, "client", 0) == listOf(
-            "id", "code", "nom", "prenom", "telephone", "created_at", "updated_at", "address_client",
-        ))
+        check(fieldNames(agentLogin, "client", 0) == clientFields)
         check(fieldNames(agentLogin, "client", 0, "address_client", 0) == listOf(
             "id", "client_id", "commune_id", "avenue", "numero_parcelle", "quartier", "created_at", "updated_at",
         ))
@@ -216,6 +233,95 @@ class RecolteApiTest(
         json.readTree(agent.response.contentAsString).path("agent").path("date_naissance").let { node: JsonNode ->
             check(node.asString() == "1990-01-01")
         }
+    }
+
+    @Test
+    fun subscriptionAmountSplitsIntoOneToFourMonthlyInstallments() {
+        val body = { tranche: String, montant: Long ->
+            """
+            {
+              "nom": "Ilunga",
+              "prenom": "Grace",
+              "telephone": "081$montant",
+              "avenue": "Kasai",
+              "quartier": "Centre",
+              "montant_souscription": $montant,
+              "tranche": "$tranche"
+            }
+            """.trimIndent()
+        }
+
+        post(
+            "/api/client",
+            """
+            {
+              "nom": "Ilunga",
+              "prenom": "Grace",
+              "telephone": "081100001",
+              "avenue": "Kasai",
+              "quartier": "Centre"
+            }
+            """.trimIndent(),
+        ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.message.montant_souscription[0]").value("The montant_souscription field is required."))
+
+        post(
+            "/api/client",
+            """
+            {
+              "nom": "Ilunga",
+              "prenom": "Grace",
+              "telephone": "081100002",
+              "avenue": "Kasai",
+              "quartier": "Centre",
+              "montant_souscription": 0,
+              "nombre_tranches": 1
+            }
+            """.trimIndent(),
+        ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.message").value("Le montant de souscription doit être supérieur à 0"))
+
+        post(
+            "/api/client",
+            """
+            {
+              "nom": "Ilunga",
+              "prenom": "Grace",
+              "telephone": "081100003",
+              "avenue": "Kasai",
+              "quartier": "Centre",
+              "montant_souscription": 9000,
+              "nombre_tranches": 5
+            }
+            """.trimIndent(),
+        ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.message.nombre_tranches[0]").value("Choisissez une tranche, deux tranche, trois tranche ou quatre tranche."))
+
+        post("/api/client", body("une tranche", 8000))
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.souscription.tranche").value("une tranche"))
+            .andExpect(jsonPath("$.souscription.tranches.length()").value(1))
+            .andExpect(jsonPath("$.souscription.tranches[0].montant").value(8000))
+
+        post("/api/client", body("deux tranches", 10000))
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.souscription.nombre_tranches").value(2))
+            .andExpect(jsonPath("$.souscription.tranche").value("deux tranche"))
+            .andExpect(jsonPath("$.souscription.tranches[0].montant").value(5000))
+            .andExpect(jsonPath("$.souscription.tranches[1].montant").value(5000))
+
+        post("/api/client", body("trois tranche", 10000))
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.souscription.tranche").value("trois tranche"))
+            .andExpect(jsonPath("$.souscription.tranches[0].montant").value(3334))
+            .andExpect(jsonPath("$.souscription.tranches[1].montant").value(3333))
+            .andExpect(jsonPath("$.souscription.tranches[2].montant").value(3333))
+
+        post("/api/client", body("quatre tranche", 10001))
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.souscription.tranche").value("quatre tranche"))
+            .andExpect(jsonPath("$.souscription.tranches[0].montant").value(2501))
+            .andExpect(jsonPath("$.souscription.tranches[3].montant").value(2500))
     }
 
     private fun fieldNames(result: MvcResult, vararg path: Any): List<String> {

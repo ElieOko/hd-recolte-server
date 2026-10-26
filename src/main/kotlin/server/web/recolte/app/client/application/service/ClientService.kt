@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional
 import server.web.recolte.app.address.infrastructure.persistence.repository.CommuneRepository
 import server.web.recolte.app.client.domain.model.AddressClient
 import server.web.recolte.app.client.domain.model.Client
+import server.web.recolte.app.client.domain.model.ClientRegistration
+import server.web.recolte.app.client.domain.model.Tranches
 import server.web.recolte.app.client.domain.model.request.ClientStoreRequest
 import server.web.recolte.app.client.infrastructure.persistence.entity.AddressClientEntity
 import server.web.recolte.app.client.infrastructure.persistence.entity.ClientEntity
@@ -29,7 +31,12 @@ class ClientService(
         }
 
     @Transactional
-    suspend fun create(request: ClientStoreRequest): AddressClient {
+    suspend fun create(request: ClientStoreRequest): ClientRegistration {
+        val souscription = Tranches.require(
+            request.montantSouscription,
+            request.nombreTranches,
+            request.tranche,
+        )
         val communeId = request.communeId
         if (communeId != null && communes.findById(communeId) == null) {
             throw ApiException(HttpStatus.BAD_REQUEST, mapOf("message" to "cette commune est inexistante !!!"))
@@ -41,11 +48,13 @@ class ClientService(
                 nom = request.nom!!.trim(),
                 prenom = request.prenom!!.trim(),
                 telephone = request.telephone!!.trim(),
+                montantSouscription = souscription.montantSouscription,
+                nombreTranches = souscription.nombreTranches,
                 createdAt = now,
                 updatedAt = now,
             ),
         )
-        return addresses.save(
+        val address = addresses.save(
             AddressClientEntity(
                 clientId = client.id,
                 communeId = communeId,
@@ -56,6 +65,7 @@ class ClientService(
                 updatedAt = now,
             ),
         ).toDomain()
+        return ClientRegistration(address, souscription)
     }
 
     suspend fun authenticate(telephone: String, avenue: String): Client {
